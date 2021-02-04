@@ -9,6 +9,7 @@ int main(void)
 	printf("Hello Krillin\n");
 	
 	render_init();
+	actors_init();
 	krlbot_init();
 	
 	while (render_poll_events()) {
@@ -25,6 +26,7 @@ int main(void)
 	}
 	
 	krlbot_term();
+	actors_term();
 	render_term();
 	
 	return 0;

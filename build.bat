@@ -15,7 +15,14 @@ set CFLAGS_DEBUG=^
 	/Od^
 	/Zi
 
-set CFLAGS=%INCLUDE_DIRS% %CFLAGS_DEBUG% /DSDL_MAIN_HANDLED
+set CFLAGS=%INCLUDE_DIRS% %CFLAGS_DEBUG% /DSDL_MAIN_HANDLED ^
+	/D_CRT_SECURE_NO_WARNINGS ^
+	/D_WINSOCK_DEPRECATED_NO_WARNINGS ^
+	/wd4028 ^
+	/wd4214 ^
+	/wd4204 ^
+	/wd4244 ^
+	/W4
 
 set LINKER_FLAGS=/LIBPATH:%LIBRARY_DIRS%^
 	user32.lib^
@@ -28,7 +35,7 @@ set CSRC=src\cunit.c
 	
 del krillin.exe
 @echo on
-clang-cl -fsanitize=address %CFLAGS% %CSRC% /Fekrillin.exe /link %LINKER_FLAGS%
+cl %CFLAGS% %CSRC% /Fekrillin.exe /link %LINKER_FLAGS%
 @echo off
 del *.obj
 

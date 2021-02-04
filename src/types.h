@@ -55,7 +55,10 @@ typedef struct actor {
 	character_id_t char_id;
 	rgba32_t color;
 	vec2_t pos;
+	int cooldown_ms;
+	int msg_display_ms;
 	timer_t cooldown_timer;
+	timer_t msg_display_timer;
 } actor_t;
 
 
@@ -66,8 +69,12 @@ typedef struct krln_socket {
 	size_t recv_reserved;
 } krln_socket_t;
 
+typedef struct krlbot_response {
+	char msg[MAX_MSG_LEN + 1];
+	int len;
+} krlbot_response_t;
 
-typedef void(*command_clbk_fn_t)(actor_t* actor, char* response);
+typedef void(*command_clbk_fn_t)(actor_t* actor, krlbot_response_t* resp);
 
 typedef struct command_clbk_pair {
 	const char* cmd;

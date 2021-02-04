@@ -1,17 +1,37 @@
 #include "krlbot.h"
 
+static krln_socket_t mainsock;
 
-
-
-static void help_command(actor_t* actor, char* response)
+static void krlbot_response_printf(krlbot_response_t* resp, const char* str, ...)
 {
-	strcat(response, "@");
-	strcat(response, actor->nick);
-	strcat(response, " ");
-	strcat(
-		response,
-		"get some help dude..."
-	);
+	va_list vl;
+	va_start(vl, str);
+	
+	const int result_len = vprintf(str, vl);
+	if ((result_len + resp->len) > MAX_MSG_LEN)
+		return;
+	
+	vsprintf(resp->msg + resp->len, str, vl);
+	resp->len += result_len;
+	
+	va_end(vl);	
+}
+
+static void krlbot_response_send(const krlbot_response_t* resp)
+{
+	krlnet_socket_send(&mainsock, "PRIVMSG #daddy_dhust :");
+	krlnet_socket_send(&mainsock, resp->msg);
+	krlnet_socket_send(&mainsock, "\n");
+}
+
+static void krlbot_response_clear(krlbot_response_t* resp)
+{
+	memset(resp, 0x00, sizeof(*resp));
+}
+
+static void help_command(actor_t* actor, krlbot_response_t* resp)
+{
+	krlbot_response_printf(resp, "@%s get some help dude!", actor->nick);
 }
 
 
@@ -24,7 +44,6 @@ static command_clbk_pair_t command_pairs[] = {
 
 
 
-static krln_socket_t mainsock;
 
 static pkt_type_t check_pkt_type(void)
 {
@@ -58,7 +77,9 @@ static void process_ping(void)
 static void process_actor_msg(void)
 {
 	// process and update actorpool	
-	char nick [ MAX_NICK_LEN + 1 ]; // Crashed by SpookyCookieMonster
+	static krlbot_response_t response;
+	memset(&response, 0, sizeof(response));
+	
 	
 	const char* nickstart = mainsock.recv_data + 1;
 	const char* nickend = strchr(nickstart, '!');
@@ -71,51 +92,36 @@ static void process_actor_msg(void)
 	
 	const char* msgend = strchr(msgstart, '\0');
 	assert(msgend != NULL);
+
 	
-	int nicklen = nickend - nickstart;
-	nicklen = nicklen > MAX_NICK_LEN ? MAX_NICK_LEN : nicklen;
-	
-	int msglen = msgend - msgstart;
-	msglen = msglen > MAX_MSG_LEN ? MAX_MSG_LEN : msglen;
-	
-	memcpy(nick, nickstart, nicklen);
-	nick[nicklen] = '\0';
-	
-	actor_t* actor = actors_find(nick);
+	actor_t* actor = actors_find(nickstart, nickend - nickstart);
 	if (actor == NULL) {
-		actor = actors_add(nick);
+		actor = actors_add(nickstart, nickend - nickstart);
+		
 		if (actor == NULL) {
-			printf("cannot add you %s </3", nick);
+			printf("ROOM IS FULL\n");
 			return;
 		}
-		krlnet_socket_send(&mainsock, "PRIVMSG #daddy_dhust :Welcome @");
-		krlnet_socket_send(&mainsock, nick);
-		krlnet_socket_send(&mainsock, "\n");
+		
+		krlbot_response_printf(&response, "Welcome @%s", actor->nick);
+		krlbot_response_send(&response);
 	}
 	
 	if ((get_timer() - actor->cooldown_timer) < COOLDOWN_TIME)
 		return;
 
-	memcpy(actor->msg, msgstart, msglen);
-	actor->msg[msglen] = '\0';
+	if (!actors_set_actor_msg(actor, msgstart, msgend - msgstart))
+		return;
 
-	// print message
-	actor->cooldown_timer = get_timer();
 	printf(":: %s :: -> %s\n", actor->nick, actor->msg);
 	
 	if (actor->msg[0] != '!')
 		return;
-	
-	static char response[MAX_MSG_LEN + 1];
-	memset(response, 0, sizeof(response));
+
 	for (int i = 0; i < STATIC_ARRAY_COUNT(command_pairs); ++i) {
 		if (memcmp(command_pairs[i].cmd, actor->msg, strlen(command_pairs[i].cmd)) == 0) {
-			command_pairs[i].clbk(actor, response);
-			if (strlen(response) > 0) {
-				krlnet_socket_send(&mainsock, "PRIVMSG #daddy_dhust :");
-				krlnet_socket_send(&mainsock, response);
-				krlnet_socket_send(&mainsock, "\n");
-			}
+			command_pairs[i].clbk(actor, &response);
+			krlbot_response_send(&response);
 			break;
 		}
 	}
@@ -164,9 +170,6 @@ void krlbot_init(void)
 	krlnet_socket_send(&mainsock, "NICK daddy_dhust\n");
 	krlnet_socket_send(&mainsock, "JOIN #daddy_dhust\n");
 	
-	krlnet_socket_send(&mainsock, "PRIVMSG #daddy_dhust :Initializing Krillin Bot\n");
-	
-	srand(time(NULL));
 	
 	printf("Krillin Initialized\n");
 }

@@ -1,3 +1,4 @@
+#include <time.h>
 #include "actors.h"
 
 
@@ -8,11 +9,22 @@
 static int actor_count;
 static actor_t actor_pool[MAX_USERS];
 
-actor_t* actors_find(const char* nick)
+void actors_init(void)
 {
+	srand(time(NULL));
+}
+
+void actors_term(void)
+{
+}
+
+actor_t* actors_find(const char* nick, int nicklen)
+{
+	nicklen = nicklen > MAX_NICK_LEN ? MAX_NICK_LEN : nicklen;
+	
 	actor_t* actor = NULL;
 	for (int i = 0; i < actor_count; ++i) {
-		if (strcmp(actor_pool[i].nick, nick) == 0) {
+		if (memcmp(actor_pool[i].nick, nick, nicklen) == 0) {
 			actor = &actor_pool[i];
 			break;
 		}
@@ -20,13 +32,16 @@ actor_t* actors_find(const char* nick)
 	return actor;
 }
 
-actor_t* actors_add(const char* nick)
+actor_t* actors_add(const char* nick, int nicklen)
 {
+	nicklen = nicklen > MAX_NICK_LEN ? MAX_NICK_LEN : nicklen;
+	
 	if (actor_count >= MAX_USERS)
 		return NULL;
 	
 	actor_t* actor = &actor_pool[actor_count++];
-	strcpy(actor->nick, nick);
+	memcpy(actor->nick, nick, nicklen);
+	actor->nick[nicklen] = '\0';
 	actor->color = (rgba32_t) {
 		rand() % 0xFF,
 		rand() % 0xFF,
@@ -39,6 +54,22 @@ actor_t* actors_add(const char* nick)
 	return actor;
 }
 
+bool actors_set_actor_msg(actor_t* actor, const char* msg, int msglen)
+{
+	msglen = msglen > MAX_MSG_LEN ? MAX_MSG_LEN : msglen;
+	
+	if ((get_timer() - actor->cooldown_timer) < actor->cooldown_ms)
+		return false;
+	
+	memcpy(actor->msg, msg, msglen);
+	actor->msg[msglen] = '\0';
+	actor->cooldown_ms = 8000;
+	actor->cooldown_timer = get_timer();
+	actor->msg_display_ms = strlen(actor->msg) * 1000;
+	actor->msg_display_timer = get_timer();
+	
+	return true;
+}
 
 void actors_update(void)
 {
@@ -51,7 +82,7 @@ void actors_render(void)
 	
 	for (int i = 0; i < actor_count; ++i) {
 		actor_t* actor = actor_pool + i;
-		if ((get_timer() - actor->cooldown_timer) < COOLDOWN_TIME) {
+		if ((get_timer() - actor->msg_display_timer) < actor->msg_display_ms) {
 			render_draw_dialog(actor);
 			break;
 		}

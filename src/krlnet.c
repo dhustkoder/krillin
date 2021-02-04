@@ -68,16 +68,12 @@ void krlnet_socket_init(krln_socket_t* sock, const char* url, uint16_t port)
 	
 	ip = inet_ntoa(*(struct in_addr *)*host->h_addr_list);
 	
-	
-	printf("krl socket got IP : %s\n", ip);
-	
 	memset(&addr, 0, sizeof(addr));
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(port);
 	InetPton(AF_INET, ip, &addr.sin_addr);
 	
 	ret = connect(handle, (struct sockaddr*)&addr, sizeof addr);
-	printf("%d\n", WSAGetLastError());
 	assert(ret == 0);
 	
 	sock->handle = handle;
@@ -99,7 +95,6 @@ void krlnet_socket_send(krln_socket_t* sock, const char* data)
 void krlnet_socket_recv(krln_socket_t* sock)
 {
 	int retval;
-	uint8_t *p = sock->recv_data;
 	
 	sock->recv_size = 0;
 	

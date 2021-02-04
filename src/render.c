@@ -3,7 +3,6 @@
 #include "stb_image.h"
 
 
-
 #define BPFNT_BIG_TABLE_W (160)
 #define BPFNT_BIG_TABLE_H (192)
 
@@ -30,15 +29,9 @@ static SDL_Texture* bkg_pic_tex;
 static timer_t bkg_timer;
 static int bkg_frame_idx;
 
-static rect_t character_pics[] = {
-	[CHARACTER_ID_KRILLIN] = {
-		VEC2(0, 0),
-		VEC2(176, 166)
-	},
-	[CHARACTER_ID_TURTLE] = {
-		VEC2(176, 0),
-		VEC2(247, 167)
-	}
+static rect_t character_pics[CHARACTER_ID_MAX_IDS] = {
+	[CHARACTER_ID_KRILLIN] = {{0, 0}, {176, 166}},
+	[CHARACTER_ID_TURTLE] = {{176, 0},{247, 167}}
 };
 
 
@@ -143,6 +136,26 @@ void render_draw_users(actor_t* users, int count)
 	}
 }
 
+static void render_print_text_char(char c, SDL_Rect dst)
+{
+	const rect_t table_pos = RECT(
+		VEC2(
+			(c % BPFNT_BIG_H_CHARS) * BPFNT_BIG_CHAR_W,
+			(c / BPFNT_BIG_H_CHARS) * BPFNT_BIG_CHAR_H
+		),
+		VEC2(
+			BPFNT_BIG_CHAR_W,
+			BPFNT_BIG_CHAR_H
+		)
+	);
+	SDL_RenderCopy(
+		rend,
+		bpf_big_tex,
+		&SDLRECT(table_pos),
+		&dst
+	);
+}
+
 void render_draw_dialog(actor_t* user)
 {
 	rect_t pic_src = character_pics[user->char_id];
@@ -156,7 +169,7 @@ void render_draw_dialog(actor_t* user)
 	SDL_SetRenderDrawColor(rend, 0x00, 0x00, 0x00, 0xFF);
 	SDL_RenderFillRect(
 		rend,
-		&SDLRECT(RECT(pic_dst.x, pic_dst.y, WINDOW_W, WINDOW_H))
+		&SDLRECT(RECT(VEC2(pic_dst.x, pic_dst.y), VEC2(WINDOW_W, WINDOW_H)))
 	);
 	
 	SDL_RenderCopy(
@@ -181,25 +194,14 @@ void render_draw_dialog(actor_t* user)
 		) {
 			continue;
 		}
-		const rect_t table_pos = RECT(
-			VEC2(
-				(c % BPFNT_BIG_H_CHARS) * BPFNT_BIG_CHAR_W,
-				(c / BPFNT_BIG_H_CHARS) * BPFNT_BIG_CHAR_H
-			),
-			VEC2(
-				BPFNT_BIG_CHAR_W,
-				BPFNT_BIG_CHAR_H
-			)
-		);
-		SDL_RenderCopy(
-			rend,
-			bpf_big_tex,
-			&SDLRECT(table_pos),
-			&text_dst
-		);
+		
+		render_print_text_char(c, text_dst);
 		text_dst.x += BPFNT_BIG_CHAR_W;
-		if (text_dst.x >= WINDOW_W)
+		if (text_dst.x >= (WINDOW_W - BPFNT_BIG_CHAR_W)) {
+			render_print_text_char('-', text_dst);
 			text_dst.x = (pic_dst.x + pic_dst.w + 8);
+			text_dst.y += BPFNT_BIG_CHAR_H + 2;
+		}
 	}
 }
 
