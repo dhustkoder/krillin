@@ -1,13 +1,15 @@
 #include "krlbot.h"
 
 static krln_socket_t mainsock;
+static FILE* nul_file;
+
 
 static void krlbot_response_printf(krlbot_response_t* resp, const char* str, ...)
 {
 	va_list vl;
 	va_start(vl, str);
 	
-	const int result_len = vprintf(str, vl);
+	const int result_len = vfprintf(nul_file, str, vl);
 	if ((result_len + resp->len) > MAX_MSG_LEN)
 		return;
 	
@@ -28,6 +30,9 @@ static void krlbot_response_clear(krlbot_response_t* resp)
 {
 	memset(resp, 0x00, sizeof(*resp));
 }
+
+
+
 
 static void help_command(actor_t* actor, krlbot_response_t* resp)
 {
@@ -55,6 +60,7 @@ static pkt_type_t check_pkt_type(void)
 	
 	const char* twitchbot = ":tmi.twitch.tv";
 	const char* pingstr = "PING";
+	const char* privmsgstr = "PRIVMSG";
 	
 	if (memcmp(mainsock.recv_data, twitchbot, strlen(twitchbot)) == 0)
 		return PKT_TYPE_NONE;
@@ -62,9 +68,13 @@ static pkt_type_t check_pkt_type(void)
 	if (memcmp(mainsock.recv_data, pingstr, strlen(pingstr)) == 0)
 		return PKT_TYPE_TWITCH_PING;
 	
-	if (strchr(mainsock.recv_data, '!') != NULL)
+	if (
+		strstr((char*)mainsock.recv_data, privmsgstr) != NULL &&
+		strchr((char*)mainsock.recv_data, '!') != NULL &&
+		strchr((char*)mainsock.recv_data, ':') != NULL
+	) {
 		return PKT_TYPE_USER_MSG;
-	
+	}
 	return PKT_TYPE_NONE;
 }
 
@@ -76,12 +86,10 @@ static void process_ping(void)
 
 static void process_actor_msg(void)
 {
-	// process and update actorpool	
 	static krlbot_response_t response;
-	memset(&response, 0, sizeof(response));
 	
 	
-	const char* nickstart = mainsock.recv_data + 1;
+	const char* nickstart = ((char*)mainsock.recv_data) + 1;
 	const char* nickend = strchr(nickstart, '!');
 	assert(nickend != NULL);
 	
@@ -103,11 +111,12 @@ static void process_actor_msg(void)
 			return;
 		}
 		
+		krlbot_response_clear(&response);
 		krlbot_response_printf(&response, "Welcome @%s", actor->nick);
 		krlbot_response_send(&response);
 	}
 	
-	if ((get_timer() - actor->cooldown_timer) < COOLDOWN_TIME)
+	if ((get_timer() - actor->cooldown_timer) < actor->cooldown_ms)
 		return;
 
 	if (!actors_set_actor_msg(actor, msgstart, msgend - msgstart))
@@ -120,6 +129,7 @@ static void process_actor_msg(void)
 
 	for (int i = 0; i < STATIC_ARRAY_COUNT(command_pairs); ++i) {
 		if (memcmp(command_pairs[i].cmd, actor->msg, strlen(command_pairs[i].cmd)) == 0) {
+			krlbot_response_clear(&response);
 			command_pairs[i].clbk(actor, &response);
 			krlbot_response_send(&response);
 			break;
@@ -131,17 +141,19 @@ static void process_packet(void)
 {	
 	if (mainsock.recv_size == 0)
 		return;
-
 	
-	   printf(
-		   "-------------------------- DATA (length %zu) -------------------------------\n"
-		   "%s\n"
-		   "----------------------------------------------------------------------------\n",
-		   mainsock.recv_size,
-		   mainsock.recv_data
-	   );
+	pkt_type_t type = check_pkt_type();
+	
+	printf(
+		"\n\n-------------------------- PKT (length %zu, type %d) -------------------------------\n"
+		"%s\n"
+		"--------------------------------------------------------------------------------------\n",
+		mainsock.recv_size,
+		type,
+		mainsock.recv_data
+	);
 
-	switch (check_pkt_type()) {
+	switch (type) {
 	case PKT_TYPE_TWITCH_PING: process_ping(); break;
 	case PKT_TYPE_USER_MSG: process_actor_msg(); break;
 	default: break;
@@ -152,6 +164,10 @@ void krlbot_init(void)
 {
 	char oauth[80];
 	char passcmd[256];
+	
+	nul_file = fopen("nul", "w");
+	assert(nul_file != NULL);
+	
 
 	memset(passcmd, 0x00, sizeof(passcmd));
 	
@@ -168,7 +184,7 @@ void krlbot_init(void)
 	krlnet_socket_init(&mainsock, "irc.chat.twitch.tv", 6667);
 	krlnet_socket_send(&mainsock, passcmd);
 	krlnet_socket_send(&mainsock, "NICK daddy_dhust\n");
-	krlnet_socket_send(&mainsock, "JOIN #daddy_dhust\n");
+	krlnet_socket_send(&mainsock, "JOIN #filiperaaamos\n");
 	
 	
 	printf("Krillin Initialized\n");
@@ -185,4 +201,5 @@ void krlbot_term(void)
 {
 	krlnet_socket_term(&mainsock);
 	krlnet_term();
+	fclose(nul_file);
 }

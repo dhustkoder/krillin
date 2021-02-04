@@ -58,14 +58,16 @@ bool actors_set_actor_msg(actor_t* actor, const char* msg, int msglen)
 {
 	msglen = msglen > MAX_MSG_LEN ? MAX_MSG_LEN : msglen;
 	
-	if ((get_timer() - actor->cooldown_timer) < actor->cooldown_ms)
+	if ((get_timer() - actor->cooldown_timer) < actor->cooldown_ms) {
+		printf("could not set msg\n");
 		return false;
+	}
 	
 	memcpy(actor->msg, msg, msglen);
 	actor->msg[msglen] = '\0';
 	actor->cooldown_ms = 8000;
 	actor->cooldown_timer = get_timer();
-	actor->msg_display_ms = strlen(actor->msg) * 1000;
+	actor->msg_display_ms = 1000 + (strlen(actor->msg) * 50);
 	actor->msg_display_timer = get_timer();
 	
 	return true;
@@ -80,11 +82,18 @@ void actors_render(void)
 {
 	render_draw_users(actor_pool, actor_count);
 	
+	actor_t* display_msg_actor = NULL;
 	for (int i = 0; i < actor_count; ++i) {
 		actor_t* actor = actor_pool + i;
 		if ((get_timer() - actor->msg_display_timer) < actor->msg_display_ms) {
-			render_draw_dialog(actor);
-			break;
+			if (display_msg_actor == NULL)
+				display_msg_actor = actor;
+			else if (actor->msg_display_timer < display_msg_actor->msg_display_timer)
+				display_msg_actor = actor;
 		}
+	}
+	
+	if (display_msg_actor != NULL) {
+		render_draw_dialog(display_msg_actor);
 	}
 }

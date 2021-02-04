@@ -16,7 +16,6 @@
 #define MAX_MSG_LEN  (256)
 #define MAX_PKT_SIZE (1024)
 
-#define COOLDOWN_TIME (5000)
 
 typedef Uint32 timer_t;
 #define get_timer() SDL_GetTicks()
@@ -55,8 +54,8 @@ typedef struct actor {
 	character_id_t char_id;
 	rgba32_t color;
 	vec2_t pos;
-	int cooldown_ms;
-	int msg_display_ms;
+	timer_t cooldown_ms;
+	timer_t msg_display_ms;
 	timer_t cooldown_timer;
 	timer_t msg_display_timer;
 } actor_t;

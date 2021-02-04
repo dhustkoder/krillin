@@ -71,7 +71,7 @@ static SDL_Texture* load_png(const char* file)
 void render_init(void)
 {
 	int ret;
-	ret = SDL_Init(SDL_INIT_VIDEO|SDL_INIT_AUDIO);
+	ret = SDL_Init(SDL_INIT_VIDEO|SDL_INIT_AUDIO|SDL_INIT_TIMER);
 	assert(ret == 0);
 	
 	SDL_DisplayMode dm;
@@ -79,7 +79,7 @@ void render_init(void)
 	win = SDL_CreateWindow(
 		"KrillinBot",
 		dm.w - WINDOW_W,
-		dm.h - WINDOW_H,
+		0,
 		WINDOW_W,
 		WINDOW_H,
 		SDL_WINDOW_BORDERLESS
