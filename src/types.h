@@ -8,8 +8,8 @@
 #include <assert.h>
 #include <SDL.h>
 
-#define WINDOW_W (849)
-#define WINDOW_H (401)
+#define WINDOW_W (500)
+#define WINDOW_H (570)
 
 #define MAX_USERS    (1024)
 #define MAX_NICK_LEN (16)
@@ -20,6 +20,8 @@
 
 typedef Uint32 timer_t;
 #define get_timer() SDL_GetTicks()
+
+
 
 
 typedef enum character_id {
@@ -47,14 +49,14 @@ typedef struct rect {
 	vec2_t size;
 } rect_t;
 
-typedef struct user {
+typedef struct actor {
 	char nick[MAX_NICK_LEN + 1];
 	char msg[MAX_MSG_LEN + 1];
 	character_id_t char_id;
 	rgba32_t color;
 	vec2_t pos;
 	timer_t cooldown_timer;
-} user_t;
+} actor_t;
 
 
 typedef struct krln_socket {
@@ -65,10 +67,17 @@ typedef struct krln_socket {
 } krln_socket_t;
 
 
+typedef void(*command_clbk_fn_t)(actor_t* actor, char* response);
+
+typedef struct command_clbk_pair {
+	const char* cmd;
+	command_clbk_fn_t clbk;
+} command_clbk_pair_t;
+
 
 #define VEC2(...) ((vec2_t){ __VA_ARGS__ })
 #define RECT(...) ((rect_t){ __VA_ARGS__ })
-
+#define STATIC_ARRAY_COUNT(array) (sizeof(array)/sizeof(array[0]))
 
 
 

@@ -2,11 +2,7 @@
 #include "render.h"
 #include "stb_image.h"
 
-static SDL_Window* win;
-static SDL_Renderer* rend;
-static SDL_Texture* bpf_big_tex;
-static SDL_Texture* character_pics_tex;
-static SDL_Texture* bkg_pic;
+
 
 #define BPFNT_BIG_TABLE_W (160)
 #define BPFNT_BIG_TABLE_H (192)
@@ -18,6 +14,21 @@ static SDL_Texture* bkg_pic;
 #define BPFNT_BIG_V_CHARS (BPFNT_BIG_TABLE_H / BPFNT_BIG_CHAR_H)
 
 #define SDLRECT(rect) ((SDL_Rect){.x=rect.pos.x, .y=rect.pos.y,.w=rect.size.x,.h=rect.size.y})
+
+#define BKG_FRAMES (6)
+#define BKG_FRAME_DELAY (50)
+#define BKG_W (500)
+#define BKG_H (570)
+
+
+static SDL_Window* win;
+static SDL_Renderer* rend;
+static SDL_Texture* bpf_big_tex;
+static SDL_Texture* character_pics_tex;
+static SDL_Texture* bkg_pic_tex;
+
+static timer_t bkg_timer;
+static int bkg_frame_idx;
 
 static rect_t character_pics[] = {
 	[CHARACTER_ID_KRILLIN] = {
@@ -70,13 +81,15 @@ void render_init(void)
 	ret = SDL_Init(SDL_INIT_VIDEO|SDL_INIT_AUDIO);
 	assert(ret == 0);
 	
+	SDL_DisplayMode dm;
+	SDL_GetCurrentDisplayMode(0, &dm);
 	win = SDL_CreateWindow(
 		"KrillinBot",
-		SDL_WINDOWPOS_CENTERED,
-		SDL_WINDOWPOS_CENTERED,
+		dm.w - WINDOW_W,
+		dm.h - WINDOW_H,
 		WINDOW_W,
 		WINDOW_H,
-		SDL_WINDOW_RESIZABLE
+		SDL_WINDOW_BORDERLESS
 	);
 	assert(win != NULL);
 	
@@ -87,10 +100,21 @@ void render_init(void)
 	
 	character_pics_tex = load_png("character_pics.png");
 	bpf_big_tex = load_png("bpfnt_big.png");
-	bkg_pic = load_png("bkg.png");
+	bkg_pic_tex = load_png("bkg.png");
+	bkg_timer = get_timer();
 }
 
-bool render_update(void)
+void render_term(void)
+{
+	SDL_DestroyTexture(bkg_pic_tex);
+	SDL_DestroyTexture(bpf_big_tex);
+	SDL_DestroyTexture(character_pics_tex);
+	SDL_DestroyRenderer(rend);
+	SDL_DestroyWindow(win);
+	SDL_Quit();
+}
+
+bool render_poll_events(void)
 {
 	SDL_Event ev;
 	while (SDL_PollEvent(&ev)) {
@@ -101,7 +125,7 @@ bool render_update(void)
 	return true;
 }
 
-void render_draw_users(user_t* users, int count)
+void render_draw_users(actor_t* users, int count)
 {
 	for (int i = 0; i < count; ++i) {
 		SDL_Rect rect = {
@@ -119,7 +143,7 @@ void render_draw_users(user_t* users, int count)
 	}
 }
 
-void render_draw_dialog(user_t* user)
+void render_draw_dialog(actor_t* user)
 {
 	rect_t pic_src = character_pics[user->char_id];
 	SDL_Rect pic_dst = {
@@ -183,7 +207,16 @@ void render_clear(void)
 {
 	SDL_SetRenderDrawColor(rend, 0xFF, 0x00, 0xFF, 0xFF);
 	SDL_RenderClear(rend);
-	SDL_RenderCopy(rend, bkg_pic, NULL, NULL);
+	
+	SDL_Rect bkg_rect = { .y = 0, .w = BKG_W, .h = BKG_H };
+	if ((get_timer() - bkg_timer) > BKG_FRAME_DELAY) {
+		bkg_frame_idx = (bkg_frame_idx + 1) % BKG_FRAMES;
+		bkg_timer = get_timer();
+	}
+	
+	bkg_rect.x = bkg_frame_idx * BKG_W;
+	
+	SDL_RenderCopy(rend, bkg_pic_tex, &bkg_rect, NULL);
 }
 
 void render_flush(void)

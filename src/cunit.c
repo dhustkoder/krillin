@@ -1,5 +1,7 @@
 #include "render.c"
 #include "krlnet.c"
+#include "actors.c"
+#include "krlbot.c"
 #include "main.c"
 
 
