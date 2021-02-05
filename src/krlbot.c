@@ -184,7 +184,7 @@ void krlbot_init(void)
 	krlnet_socket_init(&mainsock, "irc.chat.twitch.tv", 6667);
 	krlnet_socket_send(&mainsock, passcmd);
 	krlnet_socket_send(&mainsock, "NICK daddy_dhust\n");
-	krlnet_socket_send(&mainsock, "JOIN #filiperaaamos\n");
+	krlnet_socket_send(&mainsock, "JOIN #daddy_dhust\n");
 	
 	
 	printf("Krillin Initialized\n");

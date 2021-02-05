@@ -1,4 +1,5 @@
 #include <SDL.h>
+#include <SDL_mixer.h>
 #include "render.h"
 #include "stb_image.h"
 
@@ -33,7 +34,11 @@ static rect_t character_pics[CHARACTER_ID_MAX_IDS] = {
 	[CHARACTER_ID_KRILLIN] = {{0, 0}, {176, 166}},
 	[CHARACTER_ID_TURTLE] = {{176, 0},{247, 167}}
 };
-
+static const char* character_sfx_files[CHARACTER_ID_MAX_IDS] = {
+	[CHARACTER_ID_KRILLIN] = "krillin_speak_0.ogg",
+	[CHARACTER_ID_TURTLE] = "kame_speak_0.ogg"
+};
+static Mix_Chunk* character_sfx_chunks[CHARACTER_ID_MAX_IDS];
 
 
 static SDL_Texture* load_png(const char* file)
@@ -74,6 +79,15 @@ void render_init(void)
 	ret = SDL_Init(SDL_INIT_VIDEO|SDL_INIT_AUDIO|SDL_INIT_TIMER);
 	assert(ret == 0);
 	
+	ret = Mix_OpenAudio(
+		MIX_DEFAULT_FREQUENCY,
+		MIX_DEFAULT_FORMAT,
+		MIX_DEFAULT_CHANNELS,
+		4096
+	);
+	
+	assert(ret == 0);
+	
 	SDL_DisplayMode dm;
 	SDL_GetCurrentDisplayMode(0, &dm);
 	win = SDL_CreateWindow(
@@ -95,10 +109,21 @@ void render_init(void)
 	bpf_big_tex = load_png("bpfnt_big.png");
 	bkg_pic_tex = load_png("bkg.png");
 	bkg_timer = get_timer();
+	
+	for (int i = 0; i < STATIC_ARRAY_COUNT(character_sfx_files); ++i) {
+		character_sfx_chunks[i] = Mix_LoadWAV(character_sfx_files[i]);
+		printf("%s\n", Mix_GetError());
+		assert(character_sfx_chunks[i] != NULL);
+	}
 }
 
 void render_term(void)
 {
+	for (int i = 0; i < STATIC_ARRAY_COUNT(character_sfx_chunks); ++i)
+		Mix_FreeChunk(character_sfx_chunks[i]);
+	
+	Mix_CloseAudio();
+	
 	SDL_DestroyTexture(bkg_pic_tex);
 	SDL_DestroyTexture(bpf_big_tex);
 	SDL_DestroyTexture(character_pics_tex);
@@ -154,6 +179,11 @@ static void render_print_text_char(char c, SDL_Rect dst)
 		&SDLRECT(table_pos),
 		&dst
 	);
+}
+
+void render_play_dialog_sfx(actor_t* user)
+{
+	Mix_PlayChannel(-1, character_sfx_chunks[user->char_id], 0);
 }
 
 void render_draw_dialog(actor_t* user)

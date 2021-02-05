@@ -67,8 +67,9 @@ bool actors_set_actor_msg(actor_t* actor, const char* msg, int msglen)
 	actor->msg[msglen] = '\0';
 	actor->cooldown_ms = 8000;
 	actor->cooldown_timer = get_timer();
-	actor->msg_display_ms = 1000 + (strlen(actor->msg) * 50);
+	actor->msg_display_ms = 4000 + (strlen(actor->msg) * 50);
 	actor->msg_display_timer = get_timer();
+	render_play_dialog_sfx(actor);
 	
 	return true;
 }
