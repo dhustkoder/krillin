@@ -3,8 +3,19 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
-
 #include "krlnet.h"
+
+#define MAX_SOCKET_PKT_SIZE (2048)
+
+typedef struct stream {
+	char data[MAX_STREAM_LEN + 1];
+	size_t len;
+} stream_t;
+
+static FILE* nul_file;
+static SOCKET sock;
+static stream_t out_stream;
+static stream_t in_stream;
 
 
 static bool sock_is_filled(SOCKET s)
@@ -29,6 +40,105 @@ static bool sock_is_filled(SOCKET s)
 }
 
 
+static void stream_rm_data(stream_t* s, size_t count)
+{
+	ARRAY_RM_MEMMOVE(s->data, s->len, 0, count);
+	s->len -= count;
+	s->data[s->len] = '\0';
+}
+
+static void stream_write(stream_t* s, const char* data, size_t len)
+{
+	assert((s->len + len) <= MAX_STREAM_LEN);
+	memcpy(s->data + s->len, data, len);
+	s->len += len;
+	s->data[s->len] = '\0';
+}
+
+static void stream_vprintf(stream_t* s, const char* fmt, va_list vl)
+{
+	int count = vfprintf(nul_file, fmt, vl);
+	if ((s->len + count) > MAX_STREAM_LEN) {
+		printf("FMT DOEST NOT FIT STREAM := ");
+		vprintf(fmt, vl);
+		printf("\n");
+		return;
+	}
+	vsprintf(s->data + s->len, fmt, vl);
+	s->len += count;
+	s->data[s->len] = '\0';
+}
+
+static size_t stream_read(stream_t* s, char* dest, size_t count)
+{
+	if (s->len == 0)
+		return 0;
+	
+	count = s->len > count ? count : s->len;
+	memcpy(dest, s->data, count);
+	dest[count] = '\0';
+	stream_rm_data(s, count);
+	
+	return count;
+}
+
+static size_t stream_readline(stream_t* s, char* dest)
+{
+	if (s->len == 0)
+		return 0;
+	
+	const char* nl = strchr(s->data, '\n');
+	if (nl == NULL)
+		return 0;
+	
+	++nl; // lets eat the nl
+	const size_t read_count = nl - s->data;
+	return stream_read(s, dest, read_count);
+}
+
+static void stream_send(stream_t* s)
+{
+	while (s->len > 0) {
+		int cnt = s->len > MAX_SOCKET_PKT_SIZE ? MAX_SOCKET_PKT_SIZE : s->len;
+		cnt = send(sock, s->data, cnt, 0);
+		if (cnt == SOCKET_ERROR) {
+			printf("SEND SOCKET ERROR\n");
+			return;
+		}
+		stream_rm_data(s, cnt);
+	}
+}
+
+static void stream_recv(stream_t* s)
+{
+	if (!sock_is_filled(sock))
+		return;
+	
+	int cnt = MAX_STREAM_LEN - s->len;
+	cnt = cnt > MAX_SOCKET_PKT_SIZE ? MAX_SOCKET_PKT_SIZE : cnt;
+	if (cnt == 0) {
+		printf("STREAM FULL\n");
+		return;
+	}
+	
+	cnt = recv(sock, s->data + s->len, cnt, 0);
+	
+	if (cnt == SOCKET_ERROR) {
+		printf("RECV SOCKET ERROR\n");
+		return;
+	}
+	
+	s->len += cnt;
+	s->data[s->len] = '\0';
+}
+
+
+
+
+
+
+
+
 
 void krlnet_init(void)
 {
@@ -37,30 +147,32 @@ void krlnet_init(void)
 	
 	ret = WSAStartup(MAKEWORD(2, 2), &wsa_data);
 	assert(ret == 0);
+
+	nul_file = fopen("nul", "w");
+	assert(nul_file != NULL);
 }
 
 void krlnet_term(void)
 {
+	closesocket(sock);
+	fclose(nul_file);
 	WSACleanup();
 }
 
-void krlnet_socket_init(krln_socket_t* sock, const char* url, uint16_t port)
+void krlnet_connect(const char* url, uint16_t port)
 {
-	memset(sock, 0, sizeof(*sock));
-	
-	int ret;
 	const char* ip;
 	struct sockaddr_in addr;
 	struct hostent* host;
-	SOCKET handle;
+	int ret;
 	
-	handle = socket(
+	sock = socket(
 	  AF_INET,
 	  SOCK_STREAM,
 	  IPPROTO_TCP
 	);
 	
-	assert(handle != INVALID_SOCKET);
+	assert(sock != INVALID_SOCKET);
 	
 	host = gethostbyname(url);
 	
@@ -73,56 +185,29 @@ void krlnet_socket_init(krln_socket_t* sock, const char* url, uint16_t port)
 	addr.sin_port = htons(port);
 	InetPton(AF_INET, ip, &addr.sin_addr);
 	
-	ret = connect(handle, (struct sockaddr*)&addr, sizeof addr);
+	ret = connect(sock, (struct sockaddr*)&addr, sizeof addr);
 	assert(ret == 0);
-	
-	sock->handle = handle;
-	sock->recv_reserved = 2048;
-	sock->recv_data = (uint8_t*) malloc(sock->recv_reserved);
-	
 }
 
-void krlnet_socket_send(krln_socket_t* sock, const char* data)
+void krlnet_write(const char* fmt, ...)
 {
-	send(
-		sock->handle,
-		data,
-		strlen(data),
-		0
-	);
+	va_list vl;
+	va_start(vl, fmt);
+	stream_vprintf(&out_stream, fmt, vl);
+	va_end(vl);
+	
+	stream_send(&out_stream);
 }
 
-void krlnet_socket_recv(krln_socket_t* sock)
+size_t krlnet_readline(char* buffer, size_t maxlen)
 {
-	int retval;
+	stream_recv(&in_stream);
 	
-	sock->recv_size = 0;
-	
-	if (!sock_is_filled(sock->handle))
-		return;
-	
-	retval = recv(
-		(SOCKET)sock->handle,
-		(char*)sock->recv_data,
-		1024,
-		0
-	);
-	
-	if (retval == SOCKET_ERROR) {
-		printf("SOCKET ERROR\n");
-		return;
-	}
+	if (in_stream.len == 0)
+		return 0;
 
-	sock->recv_size = retval;
-	sock->recv_data[sock->recv_size] = '\0';
+	size_t read = stream_readline(&in_stream, buffer);
+	assert(read < maxlen);
+	
+	return read;
 }
-
-
-void krlnet_socket_term(krln_socket_t* sock)
-{
-	free(sock->recv_data);
-	closesocket((SOCKET)sock->handle);
-}
-
-
-

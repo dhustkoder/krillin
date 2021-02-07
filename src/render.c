@@ -2,6 +2,7 @@
 #include <SDL_mixer.h>
 #include "render.h"
 #include "stb_image.h"
+#include "actors.h"
 
 
 #define BPFNT_BIG_TABLE_W (160)
@@ -17,12 +18,13 @@
 
 #define BKG_FRAMES (6)
 #define BKG_FRAME_DELAY (50)
-#define BKG_W (500)
-#define BKG_H (570)
+#define BKG_W (WINDOW_W)
+#define BKG_H (WINDOW_H)
 
 
 static SDL_Window* win;
 static SDL_Renderer* rend;
+static SDL_Texture* target_tex;
 static SDL_Texture* bpf_big_tex;
 static SDL_Texture* character_pics_tex;
 static SDL_Texture* bkg_pic_tex;
@@ -103,14 +105,22 @@ void render_init(void)
 	rend = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED);
 	assert(rend != NULL);
 	
-	SDL_SetRenderTarget(rend, NULL);
+	target_tex = SDL_CreateTexture(
+		rend,
+		SDL_PIXELFORMAT_ARGB8888,
+		SDL_TEXTUREACCESS_TARGET,
+		WINDOW_W,
+		WINDOW_H
+	);
+	
+	SDL_SetRenderTarget(rend, target_tex);
 	
 	character_pics_tex = load_png("character_pics.png");
 	bpf_big_tex = load_png("bpfnt_big.png");
 	bkg_pic_tex = load_png("bkg.png");
 	bkg_timer = get_timer();
 	
-	for (int i = 0; i < STATIC_ARRAY_COUNT(character_sfx_files); ++i) {
+	for (size_t i = 0; i < STATIC_ARRAY_COUNT(character_sfx_files); ++i) {
 		character_sfx_chunks[i] = Mix_LoadWAV(character_sfx_files[i]);
 		printf("%s\n", Mix_GetError());
 		assert(character_sfx_chunks[i] != NULL);
@@ -119,7 +129,7 @@ void render_init(void)
 
 void render_term(void)
 {
-	for (int i = 0; i < STATIC_ARRAY_COUNT(character_sfx_chunks); ++i)
+	for (size_t i = 0; i < STATIC_ARRAY_COUNT(character_sfx_chunks); ++i)
 		Mix_FreeChunk(character_sfx_chunks[i]);
 	
 	Mix_CloseAudio();
@@ -127,6 +137,7 @@ void render_term(void)
 	SDL_DestroyTexture(bkg_pic_tex);
 	SDL_DestroyTexture(bpf_big_tex);
 	SDL_DestroyTexture(character_pics_tex);
+	SDL_DestroyTexture(target_tex);
 	SDL_DestroyRenderer(rend);
 	SDL_DestroyWindow(win);
 	SDL_Quit();
@@ -138,24 +149,27 @@ bool render_poll_events(void)
 	while (SDL_PollEvent(&ev)) {
 		switch (ev.type) {
 		case SDL_QUIT: return false;
+		case SDL_KEYDOWN:
+			actors_add("test", 4);
+			break;
 		}
 	}
 	return true;
 }
 
-void render_draw_users(actor_t* users, int count)
+void render_draw_actors(actor_t* actors, int count)
 {
 	for (int i = 0; i < count; ++i) {
 		SDL_Rect rect = {
-			.x = users[i].pos.x,
-			.y = users[i].pos.y,
+			.x = actors[i].pos.x - (48 / 2.0f),
+			.y = actors[i].pos.y - (48 / 2.0f),
 			.w = 48,
 			.h = 48
 		};
 		SDL_RenderCopy(
 			rend,
 			character_pics_tex,
-			&SDLRECT(character_pics[users[i].char_id]),
+			&SDLRECT(character_pics[actors[i].char_id]),
 			&rect
 		);
 	}
@@ -237,6 +251,8 @@ void render_draw_dialog(actor_t* user)
 
 void render_clear(void)
 {
+	SDL_SetRenderTarget(rend, target_tex);
+	
 	SDL_SetRenderDrawColor(rend, 0xFF, 0x00, 0xFF, 0xFF);
 	SDL_RenderClear(rend);
 	
@@ -253,6 +269,8 @@ void render_clear(void)
 
 void render_flush(void)
 {
+	SDL_SetRenderTarget(rend, NULL);
+	SDL_RenderCopy(rend, target_tex, NULL, NULL);
 	SDL_RenderPresent(rend);
 }
 
