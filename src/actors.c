@@ -79,6 +79,7 @@ bool actors_set_actor_msg(actor_t* actor, const char* msg, size_t msglen)
 	actor->cooldown_timer = get_timer();
 	actor->msg_display_ms = 4000 + (strlen(actor->msg) * 50);
 	actor->msg_display_timer = get_timer();
+	
 	render_play_dialog_sfx(actor);
 	
 	return true;
@@ -91,14 +92,23 @@ static void actor_move(actor_t* a, vec2_t dest)
 	a->pos = VEC2_ADD(a->pos, VEC2_SCALE(a->vel, a->speed * frame_delta));
 }
 
-static void arriving_action_update(actor_t* a)
+
+static void arriving_action_update(actor_t* actor)
 {
-	if (VEC2_IS_ZERO(VEC2_SUB(a->dest, a->pos))) {
-		a->action = ACTOR_ACTION_STANDING;
+	
+	vec2_t distance = VEC2_SUB(actor->dest, actor->pos);
+	
+	if (VEC2_IS_ZERO(distance)) {
+		actor->action = ACTOR_ACTION_STANDING;
 		return;
 	}
 	
-	actor_move(a, a->dest);
+	float mul = 0.6;
+	float x = distance.y * mul;
+	printf("%.2f %.2f\n", actor->pos.x, actor->pos.y);
+	printf("%.2f %.2f\n", actor->dest.x, actor->dest.y);
+	
+	actor_move(actor, VEC2(actor->dest.x + x, actor->dest.y));
 }
 
 static void standing_action_update(actor_t* a)

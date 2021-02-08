@@ -120,7 +120,7 @@ typedef struct actor {
 	(v).y <= ((r).pos.y + (r).size.y)    \
 )
 
-#define VEC2_IS_ZERO(v) (((int)(((v).x + ((v).y)))) == 0)
+#define VEC2_IS_ZERO(v) (((int)(v).x) == 0 && ((int)(v).y) == 0)
 
 
 
@@ -131,6 +131,8 @@ typedef struct actor {
 
 #define VEC2_LEN(v) sqrtf( ((v).x * (v).x) + ((v).y * (v).y) )
 
+#define LERP(a, b, t) ((a) * (1 - (t)) + (b) * (t))
+#define VEC2_LERP(v1, v2, t) VEC2(LERP((v1).x, (v2).x, (t)), LERP((v1).y, (v2).y, (t)))
 
 static inline vec2_t vec2_norm(vec2_t v)
 {
