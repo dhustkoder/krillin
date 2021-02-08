@@ -50,14 +50,22 @@ actor_t* actors_add(const char* nick, size_t nicklen)
 		rand() % 0xFF,
 		0xFF
 	};
+	
+	const vec2_t start_pos = VEC2((80 + rand() % (WINDOW_W - 80)), -100);
+	const vec2_t end_pos = VEC2(28 + (rand() % 465), 406 + (rand() % 12));
 	actor->action = ACTOR_ACTION_ARRIVING;
 	actor->depart_ms = 10 * 1000;
 	actor->depart_timer = get_timer();
 	actor->speed = 218.0f;
 	actor->vel = VEC2(0, 0);
-	actor->pos = VEC2(rand() % WINDOW_W, -100);
-	actor->dest = VEC2(28 + (rand() % 465), 406 + (rand() % 12));
+	actor->pos = start_pos;
+	actor->move_progress = 0.0f;
+	actor->lerp_points[0] = start_pos;
+	actor->lerp_points[3] = end_pos;
+	actor->lerp_points[1] = VEC2(start_pos.x < (WINDOW_W / 2.0f) ? WINDOW_W + 100 : 0, end_pos.y / 4.0f);
+	actor->lerp_points[2] = VEC2(start_pos.x < (WINDOW_W / 2.0f) ? -100 : WINDOW_W, end_pos.y / 2.0f);
 	actor->char_id = rand() % CHARACTER_ID_MAX_IDS;
+	
 	return actor;
 }
 
@@ -92,41 +100,53 @@ static void actor_move(actor_t* a, vec2_t dest)
 	a->pos = VEC2_ADD(a->pos, VEC2_SCALE(a->vel, a->speed * frame_delta));
 }
 
+static inline float vui_lerp(float to, float from, float t) { return (to - from) * t + from; }
+static vec2_t vui_cubic_bezier_curve_interp(vec2_t points[4], float progress) {
+	vec2_t tmp_buf[4];
+	memcpy(tmp_buf, points, sizeof(vec2_t) * 4);
+
+	size_t number_of_points = 4;
+	while (number_of_points > 1) {
+		for (size_t i = 0; i < number_of_points - 1; ++i) {
+			tmp_buf[i].x = vui_lerp(tmp_buf[i + 1].x, tmp_buf[i].x, progress);
+			tmp_buf[i].y = vui_lerp(tmp_buf[i + 1].y, tmp_buf[i].y, progress);
+
+		}
+		number_of_points -= 1;
+	}
+
+	return tmp_buf[0];
+}
 
 static void arriving_action_update(actor_t* actor)
 {
-	
-	vec2_t distance = VEC2_SUB(actor->dest, actor->pos);
-	
-	if (VEC2_IS_ZERO(distance)) {
+	actor->move_progress += 1.0f * frame_delta;
+	if (actor->move_progress >= 1.0f) {
 		actor->action = ACTOR_ACTION_STANDING;
-		return;
 	}
-	
-	float mul = 0.6;
-	float x = distance.y * mul;
-	printf("%.2f %.2f\n", actor->pos.x, actor->pos.y);
-	printf("%.2f %.2f\n", actor->dest.x, actor->dest.y);
-	
-	actor_move(actor, VEC2(actor->dest.x + x, actor->dest.y));
+	actor->pos = vui_cubic_bezier_curve_interp(actor->lerp_points, actor->move_progress);
 }
 
 static void standing_action_update(actor_t* a)
 {
-	if ((get_timer() - a->depart_timer) > a->depart_ms) {
+	if ((get_timer() - a->depart_timer) > 2500) {
+		a->lerp_points[0] = a->pos;
+		a->lerp_points[1] = VEC2(rand() % (250), a->pos.y - (rand() % 250));
+		a->lerp_points[2] = VEC2(WINDOW_W - (rand() % 250), a->pos.y - 250 + (rand() % 350));
+		a->lerp_points[3] = VEC2(a->pos.x, -120);
+		a->move_progress = 0.0f;
 		a->action = ACTOR_ACTION_DEPARTING;
 		return;
 	}
 }
 
-static void departing_action_update(actor_t* a)
+static void departing_action_update(actor_t* actor)
 {
-	vec2_t dest = VEC2(a->pos.x, -120);
-	if (VEC2_IS_ZERO(VEC2_SUB(dest, a->pos))) {
-		a->action = ACTOR_ACTION_DELETE;
-		return;
+	actor->move_progress += 1.0f * frame_delta;
+	if (actor->move_progress >= 1.0f) {
+		actor->action = ACTOR_ACTION_DELETE;
 	}
-	actor_move(a, dest);
+	actor->pos = vui_cubic_bezier_curve_interp(actor->lerp_points, actor->move_progress);
 }
 
 void actors_update(void)

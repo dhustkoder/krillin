@@ -56,9 +56,10 @@ typedef struct actor {
 	actor_action_t action;
 	rgba32_t color;
 	float speed;
+	float move_progress;
 	vec2_t pos;
 	vec2_t vel;
-	vec2_t dest;
+	vec2_t lerp_points[4];
 	timer_t depart_ms;
 	timer_t cooldown_ms;
 	timer_t msg_display_ms;
