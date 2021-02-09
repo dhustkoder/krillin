@@ -127,7 +127,7 @@ void krlbot_init(void)
 	krlnet_write(
 		"PASS %s\n"
 		"NICK daddy_krillin_bot\n"
-		"JOIN #pubg\n",
+		"JOIN #trainwreckstv\n",
 		oauth
 	);
 }

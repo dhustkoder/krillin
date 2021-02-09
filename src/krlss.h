@@ -10,6 +10,7 @@ typedef struct krlss {
 
 
 #define KRL_STATIC_STRING_DEFINE(name, maxlen) \
+static char krl_static_string_assert_##name##_len[(maxlen > 0 && maxlen <= KRLSS_MAX_CAP) ? 1 : -1]; \
 typedef struct {\
 	size_t len;\
 	char data[maxlen + 1];\
@@ -34,7 +35,6 @@ inline void krl_static_string_internal_fmt_data(krlss_t* ss, size_t cap)
 
 inline void krl_static_string_assign(krlss_t* ss, size_t cap, const char* str, size_t len)
 {
-	assert(cap > 0 && cap < KRLSS_MAX_CAP);
 	len = len > cap ? cap : len;
 	memcpy(ss->data, str, len);
 	ss->len = len;
@@ -49,13 +49,15 @@ inline int krl_static_string_ncmp(const krlss_t* ss, const char* str, size_t len
 
 inline void krl_static_string_concat(krlss_t* ss, size_t cap, const char* str, size_t len)
 {
-	len = len > cap ? cap : len;
+	len = len > (cap - ss->len) ? (cap - ss->len) : len;
 	
 	memcpy(ss->data + ss->len, str, len);
 	ss->len += len;
 	
 	krl_static_string_internal_fmt_data(ss, cap);
 }
+
+
 
 
 #define krlss_assign_ex(ss, str, len) \
@@ -66,6 +68,7 @@ inline void krl_static_string_concat(krlss_t* ss, size_t cap, const char* str, s
 
 #define krlss_assign_cstr(ss, str) \
 	krlss_assign_ex(ss, str, strlen(str))
+
 
 
 #define krlss_ncmp_ex(ss, str, len) \
@@ -87,6 +90,7 @@ inline void krl_static_string_concat(krlss_t* ss, size_t cap, const char* str, s
 
 #define krlss_concat_cstr(ss, str) \
 	krlss_concat_ex(ss, str, strlen(str))
+
 
 
 
