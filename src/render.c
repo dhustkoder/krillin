@@ -29,19 +29,15 @@ static SDL_Window* win;
 static SDL_Renderer* rend;
 static SDL_Texture* target_tex;
 static SDL_Texture* bpf_big_tex;
-static SDL_Texture* character_pics_tex;
+static SDL_Texture* sprites_tex;
 static SDL_Texture* bkg_pic_tex;
 
 static timer_t bkg_timer;
 static int bkg_frame_idx;
 
-static rect_t character_pics[CHARACTER_ID_MAX_IDS] = {
-	[CHARACTER_ID_KRILLIN] = {{0, 0}, {176, 166}},
-	[CHARACTER_ID_TURTLE] = {{176, 0},{247, 167}}
-};
+
 static const char* character_sfx_files[CHARACTER_ID_MAX_IDS] = {
-	[CHARACTER_ID_KRILLIN] = "krillin_speak_0.ogg",
-	[CHARACTER_ID_TURTLE] = "kame_speak_0.ogg"
+	[CHARACTER_ID_CHICHI] = "krillin_speak_0.ogg"
 };
 static Mix_Chunk* character_sfx_chunks[CHARACTER_ID_MAX_IDS];
 
@@ -118,7 +114,7 @@ void render_init(void)
 	
 	SDL_SetRenderTarget(rend, target_tex);
 	
-	character_pics_tex = load_png("character_pics.png");
+	sprites_tex = load_png("sprites.png");
 	bpf_big_tex = load_png("bpfnt_big.png");
 	bkg_pic_tex = load_png("bkg.png");
 	
@@ -143,7 +139,7 @@ void render_term(void)
 	
 	SDL_DestroyTexture(bkg_pic_tex);
 	SDL_DestroyTexture(bpf_big_tex);
-	SDL_DestroyTexture(character_pics_tex);
+	SDL_DestroyTexture(sprites_tex);
 	SDL_DestroyTexture(target_tex);
 	SDL_DestroyRenderer(rend);
 	SDL_DestroyWindow(win);
@@ -167,17 +163,18 @@ bool render_poll_events(void)
 void render_draw_actors(actor_t* actors, int count)
 {
 	for (int i = 0; i < count; ++i) {
-		SDL_Rect rect = {
+		SDL_Rect src = SDLRECT(actors[i].animation.frames.rects[actors[i].animation.idx]);
+		SDL_Rect dst = {
 			.x = actors[i].pos.x - (48 / 2.0f),
 			.y = actors[i].pos.y - (48 / 2.0f),
-			.w = 48,
-			.h = 48
+			.w = actors[i].animation.frames.rects[actors[i].animation.idx].size.x,
+			.h = actors[i].animation.frames.rects[actors[i].animation.idx].size.y
 		};
 		SDL_RenderCopy(
 			rend,
-			character_pics_tex,
-			&SDLRECT(character_pics[actors[i].char_id]),
-			&rect
+			sprites_tex,
+			&src,
+			&dst
 		);
 	}
 }

@@ -127,8 +127,7 @@ typedef struct msg_stack_entry {
 } msg_stack_entry_t;
 
 typedef enum character_id {
-	CHARACTER_ID_KRILLIN,
-	CHARACTER_ID_TURTLE,
+	CHARACTER_ID_CHICHI,
 	CHARACTER_ID_MAX_IDS
 } character_id_t;
 
@@ -139,18 +138,37 @@ typedef enum actor_action {
 	ACTOR_ACTION_DELETE
 } actor_action_t;
 
+typedef enum animation_id {
+	ANIMATION_ID_ARRIVING,
+	ANIMATION_ID_STANDING,
+	ANIMATION_ID_DEPARTING,
+	ANIMATION_ID_MAX_IDS,
+} animation_id_t;
+
+typedef struct animation_frames {
+	const rect_t* rects;
+	size_t count;
+	timer_t ms;
+} animation_frames_t;
+
+typedef struct animation {
+	animation_frames_t frames;
+	size_t idx;
+	timer_t timer;
+} animation_t;
+
 typedef struct actor {
 	krlss_nick_t nick;
 	krlss_msg_t msg;
 	character_id_t char_id;
 	actor_action_t action;
+	animation_t animation;
 	rgba32_t color;
 	float speed;
 	float move_progress;
 	vec2_t pos;
 	vec2_t vel;
 	vec2_t lerp_points[4];
-	timer_t depart_ms;
 	timer_t cooldown_ms;
 	timer_t depart_timer;
 	timer_t cooldown_timer;

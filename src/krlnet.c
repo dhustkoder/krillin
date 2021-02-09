@@ -49,14 +49,6 @@ static void stream_rm_data(stream_t* s, size_t count)
 	s->data[s->len] = '\0';
 }
 
-static void stream_write(stream_t* s, const char* data, size_t len)
-{
-	assert((s->len + len) <= MAX_STREAM_LEN);
-	memcpy(s->data + s->len, data, len);
-	s->len += len;
-	s->data[s->len] = '\0';
-}
-
 static void stream_vprintf(stream_t* s, const char* fmt, va_list vl)
 {
 	int count = vfprintf(nul_file, fmt, vl);
