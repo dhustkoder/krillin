@@ -205,7 +205,7 @@ static void departing_action_update(actor_t* actor)
 
 static void standing_action_update(actor_t* a)
 {
-	if ((get_timer() - a->depart_timer) > 6000) {
+	if ((get_timer() - a->depart_timer) > 60 * 1000) {
 		a->lerp_points[0] = a->pos;
 		a->lerp_points[1] = VEC2(rand() % (250), a->pos.y - (rand() % 250));
 		a->lerp_points[2] = VEC2(WINDOW_W - (rand() % 250), a->pos.y - 250 + (rand() % 350));

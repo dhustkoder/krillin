@@ -3,8 +3,6 @@
 #define MAX_IRC_LINE_LEN    (680)
 
 
-
-
 static const char* cmd_strings[] = {
 	"help",
 	"today"

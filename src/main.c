@@ -28,6 +28,7 @@ int main(void)
 	
 	
 	render_init();
+	virtual_pad_init();
 	actors_init();
 	krlnet_init();
 	krlbot_init();
@@ -36,7 +37,7 @@ int main(void)
 	timer_t start = get_timer();
 	while (render_poll_events()) {
 		krlbot_update();
-		
+		virtual_pad_update();
 		actors_update();
 		
 		render_clear();
@@ -52,6 +53,7 @@ int main(void)
 	krlbot_term();
 	krlnet_term();
 	actors_term();
+	virtual_pad_term();
 	render_term();
 	#endif
 	
