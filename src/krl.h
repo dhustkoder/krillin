@@ -1,5 +1,5 @@
-#ifndef KRL_TYPES_H_
-#define KRL_TYPES_H_
+#ifndef KRL_H_
+#define KRL_H_
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>
@@ -8,26 +8,13 @@
 #include <assert.h>
 #include <SDL.h>
 
-#define WINDOW_W (500)
-#define WINDOW_H (570)
-
-#define MAX_USERS          (1024)
-#define MAX_NICK_LEN       (16)
-#define MAX_MSG_LEN        (500)
-
-#define MAX_STREAM_LEN      (4096)
-#define MAX_IRC_LINE_LEN    (680)
-
+/*
+	BASIC TYPES AND UTILITIES
+*/
 
 typedef Uint32 timer_t;
 #define get_timer() SDL_GetTicks()
 
-
-typedef enum character_id {
-	CHARACTER_ID_KRILLIN,
-	CHARACTER_ID_TURTLE,
-	CHARACTER_ID_MAX_IDS
-} character_id_t;
 
 typedef struct rgba32 {
 	uint8_t r, g, b, a;
@@ -41,32 +28,6 @@ typedef struct rect {
 	vec2_t pos;
 	vec2_t size;
 } rect_t;
-
-typedef enum actor_action {
-	ACTOR_ACTION_STANDING,
-	ACTOR_ACTION_ARRIVING,
-	ACTOR_ACTION_DEPARTING,
-	ACTOR_ACTION_DELETE
-} actor_action_t;
-
-typedef struct actor {
-	char nick[MAX_NICK_LEN + 1];
-	char msg[MAX_MSG_LEN + 1];
-	character_id_t char_id;
-	actor_action_t action;
-	rgba32_t color;
-	float speed;
-	float move_progress;
-	vec2_t pos;
-	vec2_t vel;
-	vec2_t lerp_points[4];
-	timer_t depart_ms;
-	timer_t cooldown_ms;
-	timer_t msg_display_ms;
-	timer_t depart_timer;
-	timer_t cooldown_timer;
-	timer_t msg_display_timer;
-} actor_t;
 
 
 #define VEC2(...) ((vec2_t){ __VA_ARGS__ })
@@ -130,16 +91,95 @@ typedef struct actor {
 	.y = ((r).pos.y + (r).size.y) / 2  \
 })
 
-#define VEC2_LEN(v) sqrtf( ((v).x * (v).x) + ((v).y * (v).y) )
 
-#define LERP(a, b, t) ((a) * (1 - (t)) + (b) * (t))
-#define VEC2_LERP(v1, v2, t) VEC2(LERP((v1).x, (v2).x, (t)), LERP((v1).y, (v2).y, (t)))
 
-static inline vec2_t vec2_norm(vec2_t v)
-{
-	const float len = VEC2_LEN(v);
-	return VEC2(v.x / len, v.y / len);
-}
+
+
+/* 
+	RENDER TYPES AND LIMITS
+*/
+
+#define WINDOW_W (500)
+#define WINDOW_H (570)
+
+
+
+
+
+/*
+	ACTORS TYPES AND LIMITS
+*/
+
+#define MAX_ACTORS         (1024)
+#define MAX_NICK_LEN       (16)
+#define MAX_MSG_LEN        (86)
+#define MSG_STACK_COUNT    (8)
+
+#include "krlss.h"
+
+KRL_STATIC_STRING_DEFINE(nick, MAX_NICK_LEN);
+KRL_STATIC_STRING_DEFINE(msg, MAX_MSG_LEN);
+
+typedef struct msg_stack_entry {
+	krlss_nick_t nick;
+	krlss_msg_t msg;
+	rgba32_t color;
+} msg_stack_entry_t;
+
+typedef enum character_id {
+	CHARACTER_ID_KRILLIN,
+	CHARACTER_ID_TURTLE,
+	CHARACTER_ID_MAX_IDS
+} character_id_t;
+
+typedef enum actor_action {
+	ACTOR_ACTION_STANDING,
+	ACTOR_ACTION_ARRIVING,
+	ACTOR_ACTION_DEPARTING,
+	ACTOR_ACTION_DELETE
+} actor_action_t;
+
+typedef struct actor {
+	krlss_nick_t nick;
+	krlss_msg_t msg;
+	character_id_t char_id;
+	actor_action_t action;
+	rgba32_t color;
+	float speed;
+	float move_progress;
+	vec2_t pos;
+	vec2_t vel;
+	vec2_t lerp_points[4];
+	timer_t depart_ms;
+	timer_t cooldown_ms;
+	timer_t depart_timer;
+	timer_t cooldown_timer;
+} actor_t;
+
+
+
+/*
+	KRLBOT TYPES AND LIMITS
+*/
+
+typedef enum cmd_handler_type {
+	CMD_HANDLER_TYPE_STR,
+	CMD_HANDLER_TYPE_FN
+} cmd_handler_type_t;
+
+typedef void(*cmd_handler_fn_t)(actor_t* a, const char* line, size_t len);
+
+typedef struct cmd_handler {
+	cmd_handler_type_t type;
+	union {
+		cmd_handler_fn_t fn;
+		const char* str;
+	};
+} cmd_handler_t;
+
+
+#define CMD_HANDLER_STR(val)  {.type = CMD_HANDLER_TYPE_STR, .str = val}
+#define CMD_HANDLER_FN(val)   {.type = CMD_HANDLER_TYPE_FN, .fn = val}
 
 
 

@@ -1,6 +1,7 @@
 #ifndef KRL_ACTORS_H_
 #define KRL_ACTORS_H_
-#include "types.h"
+#include "krl.h"
+
 
 extern void actors_init(void);
 extern void actors_term(void);

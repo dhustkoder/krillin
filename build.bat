@@ -43,10 +43,14 @@ set LINKER_FLAGS=^
 
 set CSRC=src\cunit.c
 
+set CC_CLANG_CL=clang-cl -fsanitize=address
+set CC_CL=cl
+set CC=%CC_CLANG_CL%
+
 	
 del krillin.exe
 @echo on
-clang-cl -fsanitize-address  %CFLAGS% %CSRC% /Fekrillin.exe /link %LINKER_FLAGS%
+%CC%  %CFLAGS% %CSRC% /Fekrillin.exe /link %LINKER_FLAGS%
 @echo off
 del *.obj
 

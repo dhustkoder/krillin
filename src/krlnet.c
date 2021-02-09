@@ -6,6 +6,8 @@
 #include "krlnet.h"
 
 #define MAX_SOCKET_PKT_SIZE (2048)
+#define MAX_STREAM_LEN      (4096)
+
 
 typedef struct stream {
 	char data[MAX_STREAM_LEN + 1];
@@ -82,7 +84,7 @@ static size_t stream_read(stream_t* s, char* dest, size_t count)
 	return count;
 }
 
-static size_t stream_readline(stream_t* s, char* dest)
+static size_t stream_readline(stream_t* s, char* dest, size_t maxlen)
 {
 	if (s->len == 0)
 		return 0;
@@ -92,7 +94,14 @@ static size_t stream_readline(stream_t* s, char* dest)
 		return 0;
 	
 	++nl; // lets eat the nl
-	const size_t read_count = nl - s->data;
+	size_t read_count = nl - s->data;
+	
+	if (read_count > maxlen) {
+		// discard the too long line
+		stream_rm_data(s, read_count);
+		return 0;
+	}
+	
 	return stream_read(s, dest, read_count);
 }
 
@@ -206,8 +215,7 @@ size_t krlnet_readline(char* buffer, size_t maxlen)
 	if (in_stream.len == 0)
 		return 0;
 
-	size_t read = stream_readline(&in_stream, buffer);
-	assert(read < maxlen);
+	size_t read = stream_readline(&in_stream, buffer, maxlen);
 	
 	return read;
 }

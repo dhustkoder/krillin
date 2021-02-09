@@ -1,6 +1,9 @@
 #ifndef KRLNET_H_
 #define KRLNET_H_
-#include "types.h"
+#include "krl.h"
+
+
+
 
 void krlnet_init(void);
 void krlnet_term(void);

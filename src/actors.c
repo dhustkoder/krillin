@@ -3,11 +3,14 @@
 
 
 
+
 extern float frame_delta;
 
 
 static int actor_count;
-static actor_t actor_pool[MAX_USERS];
+static actor_t actor_pool[MAX_ACTORS];
+static msg_stack_entry_t msg_stack[MSG_STACK_COUNT];
+
 
 void actors_init(void)
 {
@@ -24,7 +27,7 @@ actor_t* actors_find(const char* nick, size_t nicklen)
 	
 	actor_t* actor = NULL;
 	for (int i = 0; i < actor_count; ++i) {
-		if (memcmp(actor_pool[i].nick, nick, nicklen) == 0) {
+		if (krlss_ncmp_cstr(actor_pool[i].nick, nick, nicklen) == 0) {
 			actor = &actor_pool[i];
 			break;
 		}
@@ -36,18 +39,18 @@ actor_t* actors_add(const char* nick, size_t nicklen)
 {
 	nicklen = nicklen > MAX_NICK_LEN ? MAX_NICK_LEN : nicklen;
 	
-	if (actor_count >= MAX_USERS) {
+	if (actor_count >= MAX_ACTORS) {
 		printf("ACTOR POOL IS FULL\n");
 		return NULL;
 	}
 	
 	actor_t* actor = &actor_pool[actor_count++];
-	memcpy(actor->nick, nick, nicklen);
-	actor->nick[nicklen] = '\0';
+	krlss_assign_ex(&actor->nick, nick, nicklen);
+	
 	actor->color = (rgba32_t) {
-		rand() % 0xFF,
-		rand() % 0xFF,
-		rand() % 0xFF,
+		127 + (rand() % (255 - 127)),
+		127 + (rand() % (255 - 127)),
+		127 + (rand() % (255 - 127)),
 		0xFF
 	};
 	
@@ -80,28 +83,31 @@ bool actors_set_actor_msg(actor_t* actor, const char* msg, size_t msglen)
 		printf("could not set msg\n");
 		return false;
 	}
+
+	krlss_assign_ex(&actor->msg, msg, msglen);
 	
-	memcpy(actor->msg, msg, msglen);
-	actor->msg[msglen] = '\0';
-	actor->cooldown_ms = 1000;
+	actor->cooldown_ms = 2500;
 	actor->cooldown_timer = get_timer();
-	actor->msg_display_ms = 4000 + (strlen(actor->msg) * 50);
-	actor->msg_display_timer = get_timer();
+	actor->depart_timer = get_timer();
 	
-	render_play_dialog_sfx(actor);
+	ARRAY_RM_MEMMOVE(
+		msg_stack,
+		MSG_STACK_COUNT,
+		0,
+		1
+	);
+	
+	krlss_assign(&msg_stack[MSG_STACK_COUNT - 1].nick, actor->nick);
+	krlss_assign(&msg_stack[MSG_STACK_COUNT - 1].msg, actor->msg);
+	msg_stack[MSG_STACK_COUNT - 1].color = actor->color;
 	
 	return true;
 }
 
-static void actor_move(actor_t* a, vec2_t dest)
-{
-	a->vel = VEC2_SUB(dest, a->pos);
-	a->vel = vec2_norm(a->vel);
-	a->pos = VEC2_ADD(a->pos, VEC2_SCALE(a->vel, a->speed * frame_delta));
-}
 
 static inline float vui_lerp(float to, float from, float t) { return (to - from) * t + from; }
-static vec2_t vui_cubic_bezier_curve_interp(vec2_t points[4], float progress) {
+static vec2_t vui_cubic_bezier_curve_interp(const vec2_t points[4], float progress) 
+{
 	vec2_t tmp_buf[4];
 	memcpy(tmp_buf, points, sizeof(vec2_t) * 4);
 
@@ -129,7 +135,7 @@ static void arriving_action_update(actor_t* actor)
 
 static void standing_action_update(actor_t* a)
 {
-	if ((get_timer() - a->depart_timer) > 2500) {
+	if ((get_timer() - a->depart_timer) > 60000) {
 		a->lerp_points[0] = a->pos;
 		a->lerp_points[1] = VEC2(rand() % (250), a->pos.y - (rand() % 250));
 		a->lerp_points[2] = VEC2(WINDOW_W - (rand() % 250), a->pos.y - 250 + (rand() % 350));
@@ -170,26 +176,11 @@ void actors_update(void)
 			continue;
 		}
 	}
-	
-	//printf("actor_count: %d\n", actor_count);
+
 }
 
 void actors_render(void)
 {
 	render_draw_actors(actor_pool, actor_count);
-	
-	actor_t* display_msg_actor = NULL;
-	for (int i = 0; i < actor_count; ++i) {
-		actor_t* actor = actor_pool + i;
-		if ((get_timer() - actor->msg_display_timer) < actor->msg_display_ms) {
-			if (display_msg_actor == NULL)
-				display_msg_actor = actor;
-			else if (actor->msg_display_timer < display_msg_actor->msg_display_timer)
-				display_msg_actor = actor;
-		}
-	}
-	
-	if (display_msg_actor != NULL) {
-		render_draw_dialog(display_msg_actor);
-	}
+	render_draw_msg_stack(&msg_stack[0], MSG_STACK_COUNT);
 }

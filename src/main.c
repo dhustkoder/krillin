@@ -1,12 +1,29 @@
 #include "render.h"
 #include "krlnet.h"
 
+#include "krlss.h"
+KRL_STATIC_STRING_DEFINE(test, 128);
+
+
 
 float frame_delta;
 
 
 int main(void)
 {
+	#if 0
+	krlss_test_t str;
+	
+	krlss_assign_cstr(&str, "Hello World xxxxxxxxxxxxxxxxxxxxxxxxxxx!\n");
+	
+	printf("%s", str.data);
+	
+	#endif
+	
+	
+	
+	
+	#if 1
 	printf("Hello Krillin\n");
 	
 	
@@ -36,6 +53,7 @@ int main(void)
 	krlnet_term();
 	actors_term();
 	render_term();
+	#endif
 	
 	return 0;
 }

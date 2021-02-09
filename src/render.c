@@ -11,6 +11,9 @@
 #define BPFNT_BIG_CHAR_W (10)
 #define BPFNT_BIG_CHAR_H (12)
 
+#define BPFNT_BIG_CHAR_DRAW_W (8)
+#define BPFNT_BIG_CHAR_DRAW_H (10)
+
 #define BPFNT_BIG_H_CHARS (BPFNT_BIG_TABLE_W / BPFNT_BIG_CHAR_W)
 #define BPFNT_BIG_V_CHARS (BPFNT_BIG_TABLE_H / BPFNT_BIG_CHAR_H)
 
@@ -118,13 +121,17 @@ void render_init(void)
 	character_pics_tex = load_png("character_pics.png");
 	bpf_big_tex = load_png("bpfnt_big.png");
 	bkg_pic_tex = load_png("bkg.png");
-	bkg_timer = get_timer();
+	
+	SDL_SetRenderDrawBlendMode(rend, SDL_BLENDMODE_BLEND);
+	
 	
 	for (size_t i = 0; i < STATIC_ARRAY_COUNT(character_sfx_files); ++i) {
 		character_sfx_chunks[i] = Mix_LoadWAV(character_sfx_files[i]);
 		printf("%s\n", Mix_GetError());
 		assert(character_sfx_chunks[i] != NULL);
 	}
+	
+	bkg_timer = get_timer();
 }
 
 void render_term(void)
@@ -175,6 +182,13 @@ void render_draw_actors(actor_t* actors, int count)
 	}
 }
 
+
+
+void render_play_dialog_sfx(actor_t* user)
+{
+	Mix_PlayChannel(-1, character_sfx_chunks[user->char_id], 0);
+}
+
 static void render_print_text_char(char c, SDL_Rect dst)
 {
 	const rect_t table_pos = RECT(
@@ -183,8 +197,8 @@ static void render_print_text_char(char c, SDL_Rect dst)
 			(c / BPFNT_BIG_H_CHARS) * BPFNT_BIG_CHAR_H
 		),
 		VEC2(
-			BPFNT_BIG_CHAR_W,
-			BPFNT_BIG_CHAR_H
+			BPFNT_BIG_CHAR_DRAW_W,
+			BPFNT_BIG_CHAR_DRAW_H
 		)
 	);
 	SDL_RenderCopy(
@@ -195,41 +209,17 @@ static void render_print_text_char(char c, SDL_Rect dst)
 	);
 }
 
-void render_play_dialog_sfx(actor_t* user)
+static void render_text(const char* str, rect_t dest)
 {
-	Mix_PlayChannel(-1, character_sfx_chunks[user->char_id], 0);
-}
-
-void render_draw_dialog(actor_t* user)
-{
-	rect_t pic_src = character_pics[user->char_id];
-	SDL_Rect pic_dst = {
-		.x = 0,
-		.y = WINDOW_H - (pic_src.size.y / 1.5f),
-		.w = pic_src.size.x / 1.5f,
-		.h = pic_src.size.y / 1.5f
-	};
-	
-	SDL_SetRenderDrawColor(rend, 0x00, 0x00, 0x00, 0xFF);
-	SDL_RenderFillRect(
-		rend,
-		&SDLRECT(RECT(VEC2(pic_dst.x, pic_dst.y), VEC2(WINDOW_W, WINDOW_H)))
-	);
-	
-	SDL_RenderCopy(
-		rend,
-		character_pics_tex,
-		&SDLRECT(pic_src),
-		&pic_dst
-	);
-	
 	SDL_Rect text_dst = {
-		.x = pic_dst.x + pic_dst.w + 8,
-		.y = pic_dst.y + 4,
-		.w = BPFNT_BIG_CHAR_W,
-		.h = BPFNT_BIG_CHAR_H
+		.x = dest.pos.x,
+		.y = dest.pos.y,
+		.w = BPFNT_BIG_CHAR_DRAW_W,
+		.h = BPFNT_BIG_CHAR_DRAW_H
 	};
-	const char* p = user->msg;
+	
+	const char* p = str;
+	int lines = 0;
 	while (*p != '\0') {
 		const char c = *p++;
 		if (
@@ -240,14 +230,49 @@ void render_draw_dialog(actor_t* user)
 		}
 		
 		render_print_text_char(c, text_dst);
-		text_dst.x += BPFNT_BIG_CHAR_W;
-		if (text_dst.x >= (WINDOW_W - BPFNT_BIG_CHAR_W)) {
+		text_dst.x += BPFNT_BIG_CHAR_DRAW_W;
+		if ((text_dst.x + BPFNT_BIG_CHAR_DRAW_W) >= dest.size.x) {
 			render_print_text_char('-', text_dst);
-			text_dst.x = (pic_dst.x + pic_dst.w + 8);
-			text_dst.y += BPFNT_BIG_CHAR_H + 2;
+			
+			if (*p == ' ')
+				++p;
+			
+			text_dst.x = 0;
+			text_dst.y += BPFNT_BIG_CHAR_DRAW_H + 2;
+			++lines;
+			if (lines > 1)
+				break;
 		}
 	}
 }
+
+void render_draw_msg_stack(
+	const msg_stack_entry_t* entries,
+	size_t count
+)
+{
+	rect_t dest = RECT(VEC2(0, 0), VEC2(WINDOW_W, (count + 1) * (BPFNT_BIG_CHAR_DRAW_H + 2) * 2));
+	SDL_SetRenderDrawColor(rend, 0x00, 0x00, 0x00, 0xA0);
+	SDL_RenderFillRect(rend, &SDLRECT(dest));
+	SDL_SetRenderDrawColor(rend, 0xFF, 0xFF, 0xFF, 0xFF);
+	dest.pos.y = count * (BPFNT_BIG_CHAR_DRAW_H + 2) * 2;
+	
+	const msg_stack_entry_t* entry = &entries[count - 1];
+	for (size_t i = 0; i<count; ++i, --entry) {
+		if (entry->nick.len == 0 || entry->msg.len == 0)
+			continue;
+		
+		SDL_SetTextureColorMod(bpf_big_tex, entry->color.r, entry->color.g, entry->color.b);
+		render_text(entry->nick.data, dest);
+		dest.pos.x += entry->nick.len * BPFNT_BIG_CHAR_DRAW_W;
+		render_text(": ", dest);
+		dest.pos.x += strlen(": ") * BPFNT_BIG_CHAR_DRAW_W;
+		render_text(entry->msg.data, dest);
+		dest.pos.y -= (BPFNT_BIG_CHAR_DRAW_H + 2) * 2;
+		dest.pos.x = 0;
+	}
+}
+
 
 void render_clear(void)
 {
