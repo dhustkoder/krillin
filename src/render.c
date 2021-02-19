@@ -79,7 +79,7 @@ void render_init(void)
 	int ret;
 	ret = SDL_Init(SDL_INIT_VIDEO|SDL_INIT_AUDIO|SDL_INIT_TIMER);
 	assert(ret == 0);
-	
+	/*
 	ret = Mix_OpenAudio(
 		MIX_DEFAULT_FREQUENCY,
 		MIX_DEFAULT_FORMAT,
@@ -88,7 +88,7 @@ void render_init(void)
 	);
 	
 	assert(ret == 0);
-	
+	*/
 	SDL_DisplayMode dm;
 	SDL_GetCurrentDisplayMode(0, &dm);
 	win = SDL_CreateWindow(
@@ -120,12 +120,13 @@ void render_init(void)
 	
 	SDL_SetRenderDrawBlendMode(rend, SDL_BLENDMODE_BLEND);
 	
-	
+	/*
 	for (size_t i = 0; i < STATIC_ARRAY_COUNT(character_sfx_files); ++i) {
 		character_sfx_chunks[i] = Mix_LoadWAV(character_sfx_files[i]);
 		printf("%s\n", Mix_GetError());
 		assert(character_sfx_chunks[i] != NULL);
 	}
+	*/
 	
 	bkg_timer = get_timer();
 }
