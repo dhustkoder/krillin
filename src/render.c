@@ -1,9 +1,7 @@
 #include <SDL.h>
 #include <SDL_mixer.h>
-#include "render.h"
 #include "stb_image.h"
-#include "actors.h"
-
+#include "krl.h"
 
 #define BPFNT_BIG_TABLE_W (160)
 #define BPFNT_BIG_TABLE_H (192)
@@ -35,11 +33,11 @@ static SDL_Texture* bkg_pic_tex;
 static timer_t bkg_timer;
 static int bkg_frame_idx;
 
-
-static const char* character_sfx_files[CHARACTER_ID_MAX_IDS] = {
-	[CHARACTER_ID_CHICHI] = "krillin_speak_0.ogg"
+static const char* common_sfx_files[COMMON_SFX_ID_IDCOUNT] = {
+	[COMMON_SFX_ID_LANDING] = "landing.ogg",
 };
-static Mix_Chunk* character_sfx_chunks[CHARACTER_ID_MAX_IDS];
+
+static Mix_Chunk* common_sfx_chunks[COMMON_SFX_ID_IDCOUNT];
 
 
 static SDL_Texture* load_png(const char* file)
@@ -79,7 +77,7 @@ void render_init(void)
 	int ret;
 	ret = SDL_Init(SDL_INIT_VIDEO|SDL_INIT_AUDIO|SDL_INIT_TIMER);
 	assert(ret == 0);
-	/*
+	
 	ret = Mix_OpenAudio(
 		MIX_DEFAULT_FREQUENCY,
 		MIX_DEFAULT_FORMAT,
@@ -88,7 +86,7 @@ void render_init(void)
 	);
 	
 	assert(ret == 0);
-	*/
+
 	SDL_DisplayMode dm;
 	SDL_GetCurrentDisplayMode(0, &dm);
 	win = SDL_CreateWindow(
@@ -120,21 +118,20 @@ void render_init(void)
 	
 	SDL_SetRenderDrawBlendMode(rend, SDL_BLENDMODE_BLEND);
 	
-	/*
-	for (size_t i = 0; i < STATIC_ARRAY_COUNT(character_sfx_files); ++i) {
-		character_sfx_chunks[i] = Mix_LoadWAV(character_sfx_files[i]);
-		printf("%s\n", Mix_GetError());
-		assert(character_sfx_chunks[i] != NULL);
+	
+	for (size_t i = 0; i < STATIC_ARRAY_COUNT(common_sfx_files); ++i) {
+		common_sfx_chunks[i] = Mix_LoadWAV(common_sfx_files[i]);
+		assert(common_sfx_chunks[i] != NULL);
 	}
-	*/
+
 	
 	bkg_timer = get_timer();
 }
 
 void render_term(void)
 {
-	for (size_t i = 0; i < STATIC_ARRAY_COUNT(character_sfx_chunks); ++i)
-		Mix_FreeChunk(character_sfx_chunks[i]);
+	for (size_t i = 0; i < STATIC_ARRAY_COUNT(common_sfx_chunks); ++i)
+		Mix_FreeChunk(common_sfx_chunks[i]);
 	
 	Mix_CloseAudio();
 	
@@ -184,7 +181,12 @@ void render_draw_actors(actor_t* actors, int count)
 
 void render_play_dialog_sfx(actor_t* user)
 {
-	Mix_PlayChannel(-1, character_sfx_chunks[user->char_id], 0);
+//	Mix_PlayChannel(-1, character_sfx_chunks[user->char_id], 0);
+}
+
+void render_play_common_sfx(common_sfx_id_t id)
+{
+	Mix_PlayChannel(-1, common_sfx_chunks[id], 0);
 }
 
 static void render_print_text_char(char c, SDL_Rect dst)

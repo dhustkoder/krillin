@@ -1,5 +1,4 @@
 #include <time.h>
-#include "actors.h"
 
 
 
@@ -45,7 +44,7 @@ static const animation_frames_t char_animations_frames[CHARACTER_ID_MAX_IDS][ANI
 		[ANIMATION_ID_ARRIVING] = {
 			.rects = chichi_arriving_frames,
 			.count = STATIC_ARRAY_COUNT(chichi_arriving_frames),
-			.ms = (2000 / STATIC_ARRAY_COUNT(chichi_arriving_frames))
+			.ms = (1000 / STATIC_ARRAY_COUNT(chichi_arriving_frames))
 		},
 		[ANIMATION_ID_STANDING] = {
 			.rects = chichi_standing_frames,
@@ -124,7 +123,7 @@ actor_t* actors_add(const char* nick, size_t nicklen)
 	actor->lerp_points[1] = VEC2(start_pos.x < (WINDOW_W / 2.0f) ? WINDOW_W + 100 : 0, end_pos.y / 4.0f);
 	actor->lerp_points[2] = VEC2(start_pos.x < (WINDOW_W / 2.0f) ? -100 : WINDOW_W, end_pos.y / 2.0f);
 	
-	
+	render_play_common_sfx(COMMON_SFX_ID_LANDING);	
 	return actor;
 }
 
@@ -182,7 +181,7 @@ static vec2_t vui_cubic_bezier_curve_interp(const vec2_t points[4], float progre
 
 static void arriving_action_update(actor_t* actor)
 {
-	actor->move_progress += (1.0f * frame_delta) / 2.0f;
+	actor->move_progress += 1.0f * frame_delta;
 	if (actor->move_progress >= 1.0f) {
 		actor->move_progress = 1.0f;
 		actor->action = ACTOR_ACTION_STANDING;

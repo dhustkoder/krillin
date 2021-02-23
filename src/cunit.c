@@ -1,8 +1,8 @@
 #include "render.c"
-
 #include "krlnet.c"
 #include "actors.c"
 #include "krlbot.c"
+#include "vpad.c"
 #include "main.c"
 
 

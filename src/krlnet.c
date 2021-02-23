@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
-#include "krlnet.h"
+#include "krl.h"
 
 #define MAX_SOCKET_PKT_SIZE (2048)
 #define MAX_STREAM_LEN      (4096)

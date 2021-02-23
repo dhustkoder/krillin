@@ -4,12 +4,18 @@
 set SDL2_ROOT=D:\sdks\SDL2-2.0.14
 set SDL_MIXER_ROOT=D:\sdks\SDL2_mixer-2.0.4
 
-set INCLUDE_DIRS=/I.\src^
+set VIGEM_CLIENT_ROOT=.\externals\VIGEMCLIENT\
+
+set INCLUDE_DIRS=^
+	/I.\src^
 	/I"%SDL2_ROOT%\include"^
 	/I"%SDL_MIXER_ROOT%\include"^
-	/I"C:\Program Files\OpenSSL-Win64\include"
+	/I"%VIGEM_CLIENT_ROOT%\include"
 
-set LIBRARY_DIRS=/LIBPATH:%SDL2_ROOT%\lib\x64 /LIBPATH:%SDL_MIXER_ROOT%\lib\x64
+set LIBRARY_DIRS=^
+	/LIBPATH:%SDL2_ROOT%\lib\x64^
+	/LIBPATH:%SDL_MIXER_ROOT%\lib\x64^
+	/LIBPATH:%VIGEM_CLIENT_ROOT%\lib\release\x64
 
 set CFLAGS_DEBUG=^
 	/DDEBUG=1^
@@ -39,7 +45,9 @@ set LINKER_FLAGS=^
 	Ws2_32.lib^
 	sdl2.lib^
 	sdl2main.lib^
-	sdl2_mixer.lib
+	sdl2_mixer.lib^
+	setupapi.lib^
+	vigemclient.lib
 
 set CSRC=src\cunit.c
 

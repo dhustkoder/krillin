@@ -92,22 +92,21 @@ typedef struct rect {
 })
 
 
+#define clamp(x, min, max) ((x) < (min) ? (min) : (x) > (max) ? (max) : (x))
 
 
-
-/* 
-	RENDER TYPES AND LIMITS
+/*
+	VPAD
 */
 
-#define WINDOW_W (500)
-#define WINDOW_H (570)
-
-
+extern void virtual_pad_init(void);
+extern void virtual_pad_term(void);
+extern void virtual_pad_update(void);
 
 
 
 /*
-	ACTORS TYPES AND LIMITS
+	ACTORS
 */
 
 #define MAX_ACTORS         (1024)
@@ -175,9 +174,58 @@ typedef struct actor {
 } actor_t;
 
 
+extern void actors_init(void);
+extern void actors_term(void);
+extern actor_t* actors_find(const char* nick, size_t nicklen);
+extern actor_t* actors_add(const char* nick, size_t nicklen);
+extern bool actors_set_actor_msg(actor_t* actor, const char* msg, size_t msglen);
+extern void actors_update(void);
+extern void actors_render(void);
+
+
+/* 
+	RENDER
+*/
+
+#define WINDOW_W (500)
+#define WINDOW_H (570)
+
+typedef enum {
+	COMMON_SFX_ID_LANDING,
+	COMMON_SFX_ID_IDCOUNT
+} common_sfx_id_t;
+
+extern void render_init(void);
+extern void render_term(void);
+extern bool render_poll_events(void);
+extern void render_draw_actors(actor_t* actors, int count);
+extern void render_play_dialog_sfx(actor_t* actor);
+extern void render_play_common_sfx(common_sfx_id_t id);
+
+extern void render_draw_msg_stack(
+	const msg_stack_entry_t* entries,
+	size_t count
+);
+
+extern void render_clear(void);
+extern void render_flush(void);
+
+
+
 
 /*
-	KRLBOT TYPES AND LIMITS
+	KRLNET
+*/
+
+extern void krlnet_init(void);
+extern void krlnet_term(void);
+extern void krlnet_connect(const char* url, uint16_t port);
+extern void krlnet_write(const char* fmt, ...);
+extern size_t krlnet_readline(char* buffer, size_t maxlen);
+
+
+/*
+	KRLBOT
 */
 
 typedef enum cmd_handler_type {
@@ -185,10 +233,19 @@ typedef enum cmd_handler_type {
 	CMD_HANDLER_TYPE_FN
 } cmd_handler_type_t;
 
-typedef void(*cmd_handler_fn_t)(actor_t* a, const char* line, size_t len);
+typedef struct command_info {
+	actor_t* actor;
+	const char* cmd;
+	size_t cmd_len;
+	const char* args;
+	size_t args_len;
+} cmd_info_t;
+
+typedef void(*cmd_handler_fn_t)(cmd_info_t* info);
 
 typedef struct cmd_handler {
 	cmd_handler_type_t type;
+	const char* cmd;
 	union {
 		cmd_handler_fn_t fn;
 		const char* str;
@@ -196,8 +253,17 @@ typedef struct cmd_handler {
 } cmd_handler_t;
 
 
-#define CMD_HANDLER_STR(val)  {.type = CMD_HANDLER_TYPE_STR, .str = val}
-#define CMD_HANDLER_FN(val)   {.type = CMD_HANDLER_TYPE_FN, .fn = val}
+#define CMD_HANDLER_STR(cmdstr, val)  {.cmd = cmdstr, .type = CMD_HANDLER_TYPE_STR, .str = val}
+#define CMD_HANDLER_FN(cmdstr, val)   {.cmd = cmdstr, .type = CMD_HANDLER_TYPE_FN, .fn = val}
+
+#define VPAD_DEFAULT_HANDLERS_COUNT (9)
+const cmd_handler_t vpad_default_handlers[VPAD_DEFAULT_HANDLERS_COUNT];
+
+
+
+extern void krlbot_init(void);
+extern void krlbot_update(void);
+extern void krlbot_term(void);
 
 
 
