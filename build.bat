@@ -5,12 +5,14 @@ set SDL2_ROOT=D:\sdks\SDL2-2.0.14
 set SDL_MIXER_ROOT=D:\sdks\SDL2_mixer-2.0.4
 
 set VIGEM_CLIENT_ROOT=.\externals\VIGEMCLIENT\
+set CSL_ROOT=.\externals\c-simple-libs\
 
 set INCLUDE_DIRS=^
 	/I.\src^
 	/I"%SDL2_ROOT%\include"^
 	/I"%SDL_MIXER_ROOT%\include"^
-	/I"%VIGEM_CLIENT_ROOT%\include"
+	/I"%VIGEM_CLIENT_ROOT%\include"^
+	/I"%CSL_ROOT%\csl"
 
 set LIBRARY_DIRS=^
 	/LIBPATH:%SDL2_ROOT%\lib\x64^

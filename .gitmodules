@@ -1,3 +1,6 @@
 [submodule "externals/ViGEmClient"]
 	path = externals/ViGEmClient
 	url = https://github.com/ViGEm/ViGEmClient
+[submodule "externals/c-simple-libs"]
+	path = externals/c-simple-libs
+	url = https://github.com/dhustkoder/c-simple-libs

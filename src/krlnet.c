@@ -1,11 +1,13 @@
-#include <ws2tcpip.h>
-#include <winsock2.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
 #include "krl.h"
 
-#define MAX_SOCKET_PKT_SIZE (2048)
+#define CSL_STATIC
+#define CSL_SOCKET_IMPLEMENTATION
+#include "csl_socket.h"
+
+
 #define MAX_STREAM_LEN      (4096)
 
 
@@ -15,31 +17,9 @@ typedef struct stream {
 } stream_t;
 
 static FILE* nul_file;
-static SOCKET sock;
+static Socket sock;
 static stream_t out_stream;
 static stream_t in_stream;
-
-
-static bool sock_is_filled(SOCKET s)
-{
-	struct timeval tv = { .tv_sec = 0, .tv_usec = 8000 };
-	fd_set set;
-	FD_ZERO(&set);
-	FD_SET(s, &set);
-	
-	int retval = select(
-		0,
-		&set,
-		NULL,
-		NULL,
-		&tv
-	);
-	
-	if (retval != SOCKET_ERROR && retval != 0)
-		return true;
-	
-	return false;
-}
 
 
 static void stream_rm_data(stream_t* s, size_t count)
@@ -99,32 +79,21 @@ static size_t stream_readline(stream_t* s, char* dest, size_t maxlen)
 
 static void stream_send(stream_t* s)
 {
-	while (s->len > 0) {
-		int cnt = s->len > MAX_SOCKET_PKT_SIZE ? MAX_SOCKET_PKT_SIZE : s->len;
-		cnt = send(sock, s->data, cnt, 0);
-		if (cnt == SOCKET_ERROR) {
-			printf("SEND SOCKET ERROR\n");
-			return;
-		}
-		stream_rm_data(s, cnt);
-	}
+	csl_socket_send(sock, s->data, s->len, CSL_IO_OPT_WAIT);
+	stream_rm_data(s, s->len);
 }
 
 static void stream_recv(stream_t* s)
 {
-	if (!sock_is_filled(sock))
-		return;
-	
 	int cnt = MAX_STREAM_LEN - s->len;
-	cnt = cnt > MAX_SOCKET_PKT_SIZE ? MAX_SOCKET_PKT_SIZE : cnt;
 	if (cnt == 0) {
 		printf("STREAM FULL\n");
 		return;
 	}
 	
-	cnt = recv(sock, s->data + s->len, cnt, 0);
+	cnt = csl_socket_recv(sock, s->data + s->len, cnt, CSL_IO_OPT_DONTWAIT);
 	
-	if (cnt == SOCKET_ERROR) {
+	if (cnt == CSL_SOCKET_ERROR) {
 		printf("RECV SOCKET ERROR\n");
 		return;
 	}
@@ -144,9 +113,7 @@ static void stream_recv(stream_t* s)
 void krlnet_init(void)
 {
 	int ret;
-	WSADATA wsa_data;
-	
-	ret = WSAStartup(MAKEWORD(2, 2), &wsa_data);
+	ret = csl_socket_init();
 	assert(ret == 0);
 
 	nul_file = fopen("nul", "w");
@@ -155,38 +122,19 @@ void krlnet_init(void)
 
 void krlnet_term(void)
 {
-	closesocket(sock);
+	csl_socket_close(sock);
 	fclose(nul_file);
-	WSACleanup();
+	csl_socket_term();
 }
 
 void krlnet_connect(const char* url, uint16_t port)
 {
-	const char* ip;
-	struct sockaddr_in addr;
-	struct hostent* host;
 	int ret;
 	
-	sock = socket(
-	  AF_INET,
-	  SOCK_STREAM,
-	  IPPROTO_TCP
-	);
+	sock = csl_socket_open(CSL_PROTOCOL_TCP);	
+	assert(sock != CSL_INVALID_SOCKET);
 	
-	assert(sock != INVALID_SOCKET);
-	
-	host = gethostbyname(url);
-	
-	assert(host != NULL);
-	
-	ip = inet_ntoa(*(struct in_addr *)*host->h_addr_list);
-	
-	memset(&addr, 0, sizeof(addr));
-	addr.sin_family = AF_INET;
-	addr.sin_port = htons(port);
-	InetPton(AF_INET, ip, &addr.sin_addr);
-	
-	ret = connect(sock, (struct sockaddr*)&addr, sizeof addr);
+	ret = csl_socket_connect_hostname(sock, url, port);	
 	assert(ret == 0);
 }
 
@@ -211,3 +159,4 @@ size_t krlnet_readline(char* buffer, size_t maxlen)
 	
 	return read;
 }
+
